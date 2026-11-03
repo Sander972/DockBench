@@ -1,0 +1,4 @@
+# DockBench dev container tools. status_server.py runs on the image's own python3, so python is not pinned here.
+[tools]
+shellcheck = "0.11.0"
+hadolint = "2.15.1"

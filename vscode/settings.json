@@ -1,0 +1,6 @@
+// Seeded once into each container's Machine settings (~/.vscode-server/data/Machine/settings.json, the "Remote [Tunnel]" tab in the Settings UI).
+// A theme that does not ship with VS Code also needs its extension id in extensions.txt.
+{
+  // "workbench.colorTheme": "Default Dark Modern",
+  // "editor.fontSize": 14
+}

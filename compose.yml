@@ -1,0 +1,38 @@
+services:
+  dev:
+    image: ghcr.io/sander972/dockbench:latest
+    container_name: dockbench-${PROJECT}
+    # the tunnel token in ~/.vscode/cli/token.json is encrypted with the hostname, so a random one forces a new login after every recreate
+    hostname: dockbench-${PROJECT}
+    # tini as PID 1 reaps the orphans code tunnel would not (dev servers left by closed terminals, the plugin-sync subshell), or they pile up as zombies for weeks
+    init: true
+    environment:
+      REPO_URL: ${REPO_URL}
+      TUNNEL_NAME: ${PROJECT}
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+      SSH_KEY: ${SSH_KEY:-}
+      INSTALL_CLAUDE: ${INSTALL_CLAUDE:-1}
+      CLAUDE_CONFIG_REPO: ${CLAUDE_CONFIG_REPO:-}
+      CLAUDE_CONFIG_KEY: ${CLAUDE_CONFIG_KEY:-}
+      GIT_USER_NAME: ${GIT_USER_NAME}
+      GIT_USER_EMAIL: ${GIT_USER_EMAIL}
+      SETUP_RERUN: ${SETUP_RERUN:-0}
+      VSCODE_CONFIG: ${VSCODE_CONFIG:-1}
+      VSCODE_SETTINGS: ${VSCODE_SETTINGS:-}
+    labels:
+      dockbench: "true"
+    volumes:
+      - home:/home/dev
+    networks:
+      - devnet
+      - proxy
+    restart: unless-stopped
+
+volumes:
+  home:
+
+networks:
+  devnet:
+    external: true
+  proxy:
+    external: true

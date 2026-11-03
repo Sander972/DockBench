@@ -1,0 +1,5 @@
+# Accepted on purpose; any other warning is new and should be fixed.
+ignored:
+  - DL3008 # apt packages unpinned: bookworm security updates should land on every rebuild
+  - DL3066 # user dev by name: it is created in the same image with uid 1000
+  - SC2016 # the profile.d line is single-quoted so $HOME and $PATH expand at login, not at build
