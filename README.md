@@ -1,15 +1,24 @@
 <div align="center">
 
+<img src="assets/logo.png" alt="DockBench logo" width="160" height="160">
+
 # DockBench
 
 **Your own cloud dev environment, on your own server.**
 
 Point DockBench at a GitHub repository and get a ready-to-code workspace you can open in VS Code from any computer, or straight from a browser.
 
-[![build](https://github.com/Sander972/DockBench/actions/workflows/build.yml/badge.svg)](https://github.com/Sander972/DockBench/actions/workflows/build.yml)
-[![image](https://img.shields.io/badge/ghcr.io-sander972%2Fdockbench-2496ED?logo=docker&logoColor=white)](https://github.com/Sander972/DockBench/pkgs/container/dockbench)
-[![platform](https://img.shields.io/badge/platform-linux%2Farm64-informational)](#build-it-yourself)
-[![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Build](https://img.shields.io/github/actions/workflow/status/Sander972/DockBench/build.yml?branch=main&label=build&logo=githubactions&logoColor=white)](https://github.com/Sander972/DockBench/actions/workflows/build.yml)
+[![Image](https://img.shields.io/badge/ghcr.io-sander972%2Fdockbench-2496ED?logo=docker&logoColor=white)](https://github.com/Sander972/DockBench/pkgs/container/dockbench)
+[![Platform](https://img.shields.io/badge/platform-linux%2Farm64-informational?logo=linux&logoColor=white)](#build-it-yourself)
+[![License: MIT](https://img.shields.io/github/license/Sander972/DockBench?color=green)](LICENSE)
+<br>
+[![Last commit](https://img.shields.io/github/last-commit/Sander972/DockBench)](https://github.com/Sander972/DockBench/commits/main)
+[![Issues](https://img.shields.io/github/issues/Sander972/DockBench)](https://github.com/Sander972/DockBench/issues)
+[![Stars](https://img.shields.io/github/stars/Sander972/DockBench?style=flat&logo=github)](https://github.com/Sander972/DockBench/stargazers)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](#contributing)
+
+[Getting started](#getting-started) · [Everyday use](#everyday-use) · [Configuration](#configuration) · [Security](#security)
 
 </div>
 
