@@ -46,4 +46,9 @@ ENV PATH=/home/dev/.local/bin:/home/dev/.local/share/mise/shims:$PATH \
     MISE_YES=1 \
     MISE_TRUSTED_CONFIG_PATHS=/home/dev/workspace
 
+# GHCR links the package to the repo in `source` and shows `description` on the package page; last, so a change here keeps the layer cache.
+LABEL org.opencontainers.image.source=https://github.com/Sander972/DockBench \
+      org.opencontainers.image.description="Dev container image: VS Code tunnel, Claude Code and mise, one container per project" \
+      org.opencontainers.image.licenses=MIT
+
 ENTRYPOINT ["/opt/dockbench/entrypoint.sh"]
