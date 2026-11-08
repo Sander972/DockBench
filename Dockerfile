@@ -2,6 +2,15 @@
 FROM rust:1-slim-bookworm AS rtk
 RUN cargo install --git https://github.com/rtk-ai/rtk --locked rtk
 
+# dockbench-agent (agent/): serves /status and answers the Telegram bot's probes. Dependencies first, against a stub main, so a code change does not rebuild gix.
+FROM rust:1-slim-bookworm AS agent
+WORKDIR /src
+COPY agent/Cargo.toml agent/Cargo.lock ./
+RUN mkdir src && echo 'fn main() {}' > src/main.rs && cargo build --release --locked
+COPY agent/src ./src
+# COPY keeps the context's older mtimes: touch so cargo rebuilds over the stub
+RUN touch src/main.rs && cargo build --release --locked
+
 FROM debian:bookworm-slim
 ARG TARGETARCH
 ENV DEBIAN_FRONTEND=noninteractive
@@ -21,6 +30,9 @@ RUN mkdir -p /etc/ssh && curl -fsSL https://api.github.com/meta | jq -r '.ssh_ke
 RUN curl -fsSL https://mise.run | MISE_INSTALL_PATH=/usr/local/bin/mise sh
 
 COPY --from=rtk /usr/local/cargo/bin/rtk /usr/local/bin/rtk
+# the self-check needs git, so it runs here and not in the build stage: a broken agent fails the image build
+COPY --from=agent /src/target/release/dockbench-agent /usr/local/bin/dockbench-agent
+RUN dockbench-agent --check >/dev/null
 
 RUN case "$TARGETARCH" in amd64) a=x64 ;; arm64) a=arm64 ;; esac \
     && curl -fsSL "https://update.code.visualstudio.com/latest/cli-linux-${a}/stable" | tar -xz -C /usr/local/bin code
@@ -34,7 +46,7 @@ RUN useradd -m -u 1000 -s /bin/bash dev && echo "dev ALL=(ALL) NOPASSWD:ALL" > /
     && install -d -o dev -g dev /var/lib/dockbench \
     && echo 'export PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:$PATH"' > /etc/profile.d/dockbench.sh
 
-COPY entrypoint.sh status_server.py /opt/dockbench/
+COPY entrypoint.sh /opt/dockbench/
 COPY vscode/ /opt/dockbench/vscode/
 RUN chmod +x /opt/dockbench/entrypoint.sh
 

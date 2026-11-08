@@ -1,0 +1,16 @@
+[package]
+name = "dockbench-agent"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+gix = { version = "0.90", default-features = false, features = ["status", "revision", "sha1"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true
+# no panic = "abort": a panic must end only its own request thread, never the server (nothing restarts it)
