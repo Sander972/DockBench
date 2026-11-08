@@ -1,4 +1,4 @@
-# DockBench dev container tools. status_server.py runs on the image's own python3, so python is not pinned here.
+# DockBench dev container tools. dockbench-agent (agent/) is built by the Dockerfile's own Rust stage, so Rust is not pinned here.
 [tools]
 shellcheck = "0.11.0"
 hadolint = "2.15.1"

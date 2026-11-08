@@ -260,7 +260,7 @@ Checks to run before a pull request:
 
 ```sh
 mise install                       # shellcheck and hadolint, pinned in .mise.toml
-python status_server.py --check    # self-check of the /status logic
+cargo test --manifest-path agent/Cargo.toml   # dockbench-agent: /status logic and the bot probes (needs git)
 shellcheck entrypoint.sh
 hadolint Dockerfile                # .hadolint.yaml lists the rules ignored on purpose
 ```

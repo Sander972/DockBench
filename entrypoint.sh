@@ -135,7 +135,8 @@ if [ -f .devcontainer/setup.sh ] && { [ ! -f "$MARK_DIR/setup.done" ] || [ "${SE
   fi
 fi
 
-python3 /opt/dockbench/status_server.py &
+# GET /status on :8080 for the dashboard; git is read in-process and the tunnel and mise answers are cached, so frequent polls start almost no programs
+/usr/local/bin/dockbench-agent &
 
 SERVER_DATA=$HOME_DIR/.vscode-server
 MACHINE=$SERVER_DATA/data/Machine

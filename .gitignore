@@ -1,3 +1,4 @@
 .env*
 icons/
 !.env.example
+agent/target/
