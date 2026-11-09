@@ -185,6 +185,7 @@ All settings are environment variables; [`.env.example`](.env.example) lists the
 | `SETUP_RERUN` | no | `1` runs `.devcontainer/setup.sh` again on the next start. |
 | `VSCODE_CONFIG` | no | `1` (default) applies the image's VS Code settings to a new container; `0` skips it. |
 | `VSCODE_SETTINGS` | no | Base64 of your own VS Code `settings.json`, used instead of the image's. |
+| `CPUSET` | no | Cores the container may run on, as a Linux cpuset list (`1-3`). Empty (default) means every core. The DockBench Dashboard sets every core but 0, so core 0 stays free for the host. |
 
 <details>
 <summary><b>Details: credentials, Claude Code and VS Code settings</b></summary>

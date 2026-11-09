@@ -6,6 +6,8 @@ services:
     hostname: dockbench-${PROJECT}
     # tini as PID 1 reaps the orphans code tunnel would not (dev servers left by closed terminals, the plugin-sync subshell), or they pile up as zombies for weeks
     init: true
+    # cores this container may run on; the dashboard sets 1-(N-1) so core 0 stays free for the host, empty means every core
+    cpuset: ${CPUSET:-}
     environment:
       REPO_URL: ${REPO_URL}
       TUNNEL_NAME: ${PROJECT}
