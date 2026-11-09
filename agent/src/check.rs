@@ -1,4 +1,4 @@
-//! `dockbench-agent --check`: the self-check status_server.py had (a scratch repo and Claude folder, then the whole `/status` answer), plus the bot probes. It needs `git` on PATH and runs in the image build, so a broken binary never ships.
+//! `dockbench-agent --check`: the self-check status_server.py had (a scratch repo and Claude folder, then the whole `/status` answer), plus the bot probes as subcommands and over HTTP. It needs `git` on PATH and runs in the image build, so a broken binary never ships.
 
 use crate::{probes, status};
 use serde_json::{Value, json};
@@ -95,6 +95,9 @@ pub fn run() {
     assert!((cpu - 2.12).abs() < 1e-9 && age.is_some_and(|a| (0..60).contains(&a)), "{cpu} {age:?}");
     assert_eq!(probes::activity("s3", &proc_root, &home), None);
     assert!(probes::claude_key(&home).starts_with("signed-out:"));
+
+    // the same probes over HTTP, token and all, against the scratch home (its workspace is not a repo)
+    crate::http::self_test(&status::Server::new(status::Paths { home: home.clone(), workspace: home.join("no-repo"), claude_dir: c.clone(), plugin_sync: c.join("sync.json") }));
 
     for dir in [d, c, home, empty, proc_root] {
         let _ = fs::remove_dir_all(dir);
