@@ -13,6 +13,14 @@ if [ "${INSTALL_CLAUDE:-1}" = "1" ]; then
   else
     timeout 300 bash -o pipefail -c 'curl -fsSL https://claude.ai/install.sh | bash' || echo "warning: could not install Claude Code" >&2
   fi
+  # claude update keeps every replaced version (about 300 MB each) in the volume: keep only the one ~/.local/bin/claude points to
+  versions=$HOME_DIR/.local/share/claude/versions
+  current=$(readlink -f "$HOME_DIR/.local/bin/claude" || true)
+  if [ -x "$current" ] && [ "$(dirname "$current")" = "$versions" ]; then
+    for v in "$versions"/*; do
+      [ "$v" = "$current" ] || rm -rf "$v" || echo "warning: could not remove old Claude Code version $v" >&2
+    done
+  fi
 fi
 
 git config --global user.name "$GIT_USER_NAME"
