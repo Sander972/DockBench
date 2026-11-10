@@ -31,7 +31,7 @@ pub fn run() {
     fs::create_dir(d.join("a.code-workspace")).unwrap();
     std::os::unix::fs::symlink("b.code-workspace", d.join("0.code-workspace")).unwrap();
 
-    let paths = status::Paths { home: home.clone(), workspace: d.clone(), claude_dir: c.clone(), plugin_sync: c.join("sync.json") };
+    let paths = status::Paths { home: home.clone(), workspace: d.clone(), claude_dir: c.clone(), plugin_sync: c.join("sync.json"), proc_root: home.join("no-proc") };
     let s = serde_json::to_value(status::Server::new(paths).status()).unwrap();
     assert_eq!(s["branch"], "main", "{s}");
     assert_eq!(s["dirty"], 6, "{s}");
@@ -97,7 +97,7 @@ pub fn run() {
     assert!(probes::claude_key(&home).starts_with("signed-out:"));
 
     // the same probes over HTTP, token and all, against the scratch home (its workspace is not a repo)
-    crate::http::self_test(&status::Server::new(status::Paths { home: home.clone(), workspace: home.join("no-repo"), claude_dir: c.clone(), plugin_sync: c.join("sync.json") }));
+    crate::http::self_test(&status::Server::new(status::Paths { home: home.clone(), workspace: home.join("no-repo"), claude_dir: c.clone(), plugin_sync: c.join("sync.json"), proc_root: home.join("no-proc") }));
 
     for dir in [d, c, home, empty, proc_root] {
         let _ = fs::remove_dir_all(dir);

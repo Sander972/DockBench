@@ -1,4 +1,4 @@
-//! dockbench-agent: the DockBench dev container's resident helper. With no argument it serves `GET /status` on :8080 for the dashboard (it replaces status_server.py) and the Telegram bot's probes behind a token (`http.rs`); the subcommands answer the same probes through `docker exec`, for a bot that cannot reach the port.
+//! dockbench-agent: the DockBench dev container's resident helper. With no argument it serves `GET /status` on :8080 for the dashboard (it replaces status_server.py) and, behind a token, the Telegram bot's probes and run chores (account, a run's folders, stopping runs; `http.rs`); the subcommands answer the same probes through `docker exec`, for a bot that cannot reach the port.
 
 mod check;
 mod git;

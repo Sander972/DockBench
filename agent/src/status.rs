@@ -31,12 +31,14 @@ pub struct Paths {
     pub claude_dir: PathBuf,
     /// written by the entrypoint's background plugin sync, per container
     pub plugin_sync: PathBuf,
+    /// `/proc` in the container; a scratch folder in the self-checks, so their stop routes can never signal a real run
+    pub proc_root: PathBuf,
 }
 
 impl Paths {
     pub fn from_env() -> Paths {
         let home = PathBuf::from(std::env::var_os("HOME").unwrap_or_else(|| "/home/dev".into()));
-        Paths { workspace: home.join("workspace"), claude_dir: home.join(".claude"), plugin_sync: "/var/lib/dockbench/claude-plugins.json".into(), home }
+        Paths { workspace: home.join("workspace"), claude_dir: home.join(".claude"), plugin_sync: "/var/lib/dockbench/claude-plugins.json".into(), proc_root: "/proc".into(), home }
     }
 }
 

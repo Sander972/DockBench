@@ -1,4 +1,4 @@
-//! HTTP on port 8080, one request per connection, each on its own thread so one slow or idle peer never holds the next poll. `GET /status` is open (the dashboard's contract); the bot's probes (`/pin-info`, `/activity`, `/title`, `/claude-key`) need `Authorization: Bearer <token>`, the token this process made at start and wrote to `~/.dockbench-agent-token`, so another container on the same network cannot read this one's git state or session titles.
+//! HTTP on port 8080, one request per connection, each on its own thread so one slow or idle peer never holds the next poll. `GET /status` is open (the dashboard's contract); the bot's routes (the probes `GET /pin-info`, `/activity`, `/title`, `/claude-key`, `/account` and the run chores `POST /prepare`, `/outbox-clear`, `/stop`, `/stop-all`) need `Authorization: Bearer <token>`, the token this process made at start and wrote to `~/.dockbench-agent-token`, so another container on the same network cannot read this one's git state or session titles, nor stop its runs.
 
 use crate::probes;
 use crate::status::Server;
@@ -62,8 +62,24 @@ fn text(code: u16, body: String) -> Answer {
 }
 
 fn error(code: u16, msg: &str) -> Answer {
-    json(code, format!(r#"{{"error":"{msg}"}}"#))
+    json(code, serde_json::json!({ "error": msg }).to_string())
 }
+
+/// Every route and its one method; a known path asked with another is `405`, an unknown one `404`, both before the token is checked.
+const ROUTES: &[(&str, &str)] = &[
+    ("/status", "GET"),
+    ("/pin-info", "GET"),
+    ("/activity", "GET"),
+    ("/title", "GET"),
+    ("/claude-key", "GET"),
+    ("/account", "GET"),
+    ("/prepare", "POST"),
+    ("/outbox-clear", "POST"),
+    ("/stop", "POST"),
+    ("/stop-all", "POST"),
+];
+
+const BAD_SESSION: &str = "session must be letters, digits and dashes";
 
 /// The `name=value` pairs of a query string, percent-decoded.
 fn query(q: &str) -> Vec<(String, String)> {
@@ -108,42 +124,45 @@ fn authorized(head: &str, token: &str) -> bool {
     sent.len() == token.len() && !token.is_empty() && sent.bytes().zip(token.bytes()).fold(0u8, |acc, (a, b)| acc | (a ^ b)) == 0
 }
 
-/// The answer to one request head. `/status` is open; the probes need the token, a wrong or missing one is `401` whatever the route, so a scan learns nothing.
+/// The answer to one request head. `/status` is open; the other routes need the token, a wrong or missing one is `401` whatever the route, so a scan learns nothing.
 pub fn answer(head: &str, server: &Server, token: &str) -> Answer {
     let mut parts = head.lines().next().unwrap_or("").split(' ');
     let (Some(method), Some(target)) = (parts.next(), parts.next()) else { return error(400, "bad request") };
     let (path, q) = target.split_once('?').unwrap_or((target, ""));
-    if method != "GET" {
+    let Some(&(_, want)) = ROUTES.iter().find(|(p, _)| *p == path) else { return error(404, "not found") };
+    if method != want {
         return error(405, "method not allowed");
     }
     if path == "/status" {
         return json(200, serde_json::to_string(&server.status()).unwrap_or_default());
     }
-    if !matches!(path, "/pin-info" | "/activity" | "/title" | "/claude-key") {
-        return error(404, "not found");
-    }
     if !authorized(head, token) {
         return error(401, "unauthorized");
     }
     let params = query(q);
-    match path {
-        "/pin-info" => {
+    let (home, proc_root) = (&server.paths.home, &server.paths.proc_root);
+    let done = |r: std::io::Result<()>| match r {
+        Ok(()) => text(200, "ok\n".into()),
+        Err(e) => error(500, &e.to_string()),
+    };
+    match (path, session_id(&params)) {
+        ("/pin-info", _) => {
             let dir = params.iter().find(|(k, _)| k == "dir").map_or_else(|| server.paths.workspace.clone(), |(_, v)| v.into());
             json(200, probes::pin_info(&dir).to_string())
         }
-        "/activity" => match session_id(&params) {
-            None => error(400, "session must be letters, digits and dashes"),
-            // exit 3 of the subcommand: the run is not in the container
-            Some(sid) => match probes::activity(sid, Path::new("/proc"), &server.paths.home) {
-                Some((cpu, age)) => text(200, format!("{cpu} {}\n", age.unwrap_or(-1))),
-                None => text(204, String::new()),
-            },
+        ("/claude-key", _) => text(200, format!("{}\n", probes::claude_key(home))),
+        ("/account", _) => json(200, probes::account(home).to_string()),
+        ("/stop-all", _) => text(200, format!("{}\n", probes::stop(&probes::run_pids(proc_root, None)))),
+        (_, None) => error(400, BAD_SESSION),
+        // exit 3 of the subcommand: the run is not in the container
+        ("/activity", Some(sid)) => match probes::activity(sid, proc_root, home) {
+            Some((cpu, age)) => text(200, format!("{cpu} {}\n", age.unwrap_or(-1))),
+            None => text(204, String::new()),
         },
-        "/title" => match session_id(&params) {
-            None => error(400, "session must be letters, digits and dashes"),
-            Some(sid) => text(200, probes::title(sid, &server.paths.home)),
-        },
-        _ => text(200, format!("{}\n", probes::claude_key(&server.paths.home))),
+        ("/title", Some(sid)) => text(200, probes::title(sid, home)),
+        ("/prepare", Some(key)) => done(probes::prepare(home, key)),
+        ("/outbox-clear", Some(key)) => done(probes::clear_outbox(home, key)),
+        (_, Some(sid)) => text(200, format!("{}\n", probes::stop(&probes::run_pids(proc_root, Some(sid))))),
     }
 }
 
@@ -160,6 +179,7 @@ fn handle(mut c: TcpStream, server: &Server, token: &str) {
         400 => "Bad Request",
         401 => "Unauthorized",
         405 => "Method Not Allowed",
+        500 => "Internal Server Error",
         _ => "Not Found",
     };
     let ctype = if a.json { "application/json" } else { "text/plain; charset=utf-8" };
@@ -175,14 +195,15 @@ fn handle(mut c: TcpStream, server: &Server, token: &str) {
 /// The probe routes against a server on `paths` (a scratch home and workspace: `/status` is left out, it would start `code` and `mise`), as the image build's `--check` and `cargo test` run it. Panics on the first wrong answer.
 pub fn self_test(server: &Server) {
     let token = "0123456789abcdef0123456789abcdef";
-    let head = |target: &str, auth: Option<&str>| {
-        let mut h = format!("GET {target} HTTP/1.1\r\nHost: x\r\n");
+    let req = |method: &str, target: &str, auth: Option<&str>| {
+        let mut h = format!("{method} {target} HTTP/1.1\r\nHost: x\r\n");
         if let Some(a) = auth {
             h.push_str(&format!("Authorization: {a}\r\n"));
         }
         h.push_str("\r\n");
         h
     };
+    let head = |target: &str, auth: Option<&str>| req("GET", target, auth);
     let ok = Some(format!("Bearer {token}"));
     let a = answer(&head("/pin-info", ok.as_deref()), server, token);
     assert_eq!((a.code, a.body.as_str()), (200, r#"{"git":null,"subs":[]}"#), "pin-info of a non-repo workspace");
@@ -208,6 +229,33 @@ pub fn self_test(server: &Server) {
     }
     let a = answer("POST /status HTTP/1.1\r\n\r\n", server, token);
     assert_eq!(a.code, 405);
+
+    // the run chores: the sign-in, the run's folders, stopping runs (the server's proc root holds none, so nothing is signalled)
+    let a = answer(&head("/account", ok.as_deref()), server, token);
+    assert_eq!((a.code, a.body.as_str()), (200, r#"{"loggedIn":false,"email":null,"plan":null}"#), "account of a signed-out home");
+    let post = |target: &str| answer(&req("POST", target, ok.as_deref()), server, token);
+    let a = post("/prepare?session=4518");
+    let (inbox, out) = (server.paths.home.join(".telegram/inbox"), server.paths.home.join(".telegram/outbox/4518"));
+    assert!(a.code == 200 && a.body == "ok\n" && inbox.is_dir() && out.is_dir(), "{} {}", a.code, a.body);
+    std::fs::write(out.join("a.png"), "x").unwrap();
+    for _ in 0..2 {
+        let a = post("/outbox-clear?session=4518");
+        assert!(a.code == 200 && a.body == "ok\n" && !out.exists(), "{} {}", a.code, a.body);
+    }
+    let a = post("/stop?session=no-such-run");
+    assert_eq!((a.code, a.body.as_str()), (200, "0\n"));
+    let a = post("/stop-all");
+    assert!(a.code == 200 && a.body.trim().parse::<usize>().is_ok(), "{} {}", a.code, a.body);
+    for (target, want) in [("/prepare?session=..%2Fx", 400), ("/prepare", 400), ("/stop", 400), ("/outbox-clear?session=", 400)] {
+        assert_eq!(post(target).code, want, "{target}");
+    }
+    for (m, target) in [("GET", "/prepare?session=1"), ("POST", "/account"), ("GET", "/stop-all"), ("POST", "/pin-info")] {
+        assert_eq!(answer(&req(m, target, ok.as_deref()), server, token).code, 405, "{m} {target}");
+    }
+    for (m, target) in [("GET", "/account"), ("POST", "/prepare?session=1"), ("POST", "/outbox-clear?session=1"), ("POST", "/stop?session=1"), ("POST", "/stop-all")] {
+        assert_eq!(answer(&req(m, target, None), server, token).code, 401, "{m} {target} without the token");
+    }
+    assert!(!server.paths.home.join(".telegram/outbox/1").exists(), "an unauthorized prepare did something");
     assert!(!authorized(&head("/pin-info", Some("Bearer ")), ""), "an empty token never authorizes");
     assert_eq!(unescape("a%20b+c%2F%zz"), "a b c/%zz");
 }
@@ -222,7 +270,7 @@ mod tests {
         let d = std::env::temp_dir().join(format!("dockbench-agent-http-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(d.join("ws")).unwrap();
-        let paths = Paths { home: d.clone(), workspace: d.join("ws"), claude_dir: d.join(".claude"), plugin_sync: d.join("sync.json") };
+        let paths = Paths { home: d.clone(), workspace: d.join("ws"), claude_dir: d.join(".claude"), plugin_sync: d.join("sync.json"), proc_root: d.join("no-proc") };
         (Server::new(paths), d)
     }
 
