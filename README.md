@@ -45,7 +45,7 @@ Your laptop stays clean, long builds and dev servers keep running when you close
 
 ### What's inside
 
-Git, GitHub CLI, [mise](https://mise.jdx.dev) (installs per-project tools), Python 3, [Bun](https://bun.sh), [rtk](https://github.com/rtk-ai/rtk), the VS Code tunnel and, optionally, Claude Code.
+Git, GitHub CLI, [mise](https://mise.jdx.dev) (installs per-project tools), Python 3, [Node.js](https://nodejs.org) (latest LTS; Bun and other runtimes come from a repo's `.mise.toml`), [rtk](https://github.com/rtk-ai/rtk), the VS Code tunnel and, optionally, Claude Code.
 
 ## How it works
 

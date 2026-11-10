@@ -37,10 +37,16 @@ RUN dockbench-agent --check >/dev/null
 RUN case "$TARGETARCH" in amd64) a=x64 ;; arm64) a=arm64 ;; esac \
     && curl -fsSL "https://update.code.visualstudio.com/latest/cli-linux-${a}/stable" | tar -xz -C /usr/local/bin code
 
-# default bun for every container, pinned so rebuilds are reproducible; a repo's .mise.toml bun wins wherever the mise shims come first in PATH (image ENV, login shells).
-# Kept after the unpinned rtk/code layers so a Bun bump does not refetch them.
-ARG BUN_VERSION=1.4.3
-RUN curl -fsSL https://bun.sh/install | BUN_INSTALL=/usr/local bash -s "bun-v${BUN_VERSION}" && bun --version
+# default Node (latest LTS) for every container, pinned so rebuilds are reproducible; a repo's .mise.toml node wins in its folders, elsewhere the mise shim falls back to this one. Bun is not in the image: a repo that needs it lists it in its .mise.toml.
+# Kept after the unpinned rtk/code layers so a Node bump does not refetch them.
+ARG NODE_VERSION=26.13.0
+RUN case "$TARGETARCH" in amd64) a=x64 ;; arm64) a=arm64 ;; esac \
+    && f="node-v${NODE_VERSION}-linux-${a}.tar.gz" \
+    && curl -fsSL -o "/tmp/${f}" "https://nodejs.org/dist/v${NODE_VERSION}/${f}" \
+    && sum=$(curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/SHASUMS256.txt" | grep " ${f}\$" | cut -d' ' -f1) \
+    && echo "${sum}  /tmp/${f}" | sha256sum -c - \
+    && tar -xzf "/tmp/${f}" -C /usr/local --strip-components=1 --exclude='*.md' --exclude=LICENSE \
+    && rm "/tmp/${f}" && node --version && npm --version
 
 RUN useradd -m -u 1000 -s /bin/bash dev && echo "dev ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/dev \
     && install -d -o dev -g dev /var/lib/dockbench \
