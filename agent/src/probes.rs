@@ -170,6 +170,15 @@ pub fn clear_outbox(home: &Path, key: &str) -> io::Result<()> {
     remove(&home.join(".telegram/outbox").join(key))
 }
 
+/// An upload from the bot (a prompt's attachment) as `~/.telegram/inbox/<name>`, mode 0644, the inbox created when missing. `name` is checked by the caller to name a file directly in it.
+pub fn write_inbox(home: &Path, name: &str, data: &[u8]) -> io::Result<()> {
+    use std::io::Write;
+    use std::os::unix::fs::OpenOptionsExt;
+    let inbox = home.join(".telegram/inbox");
+    fs::create_dir_all(&inbox)?;
+    fs::OpenOptions::new().write(true).create(true).truncate(true).mode(0o644).open(inbox.join(name))?.write_all(data)
+}
+
 /// `rm -rf`: a folder with everything in it, or a file or symlink itself (never what it points to); nothing there is fine.
 fn remove(p: &Path) -> io::Result<()> {
     let r = match fs::symlink_metadata(p) {
